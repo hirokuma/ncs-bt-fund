@@ -12,6 +12,7 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/usb/usb_device.h>
 #include <soc.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
@@ -29,11 +30,11 @@
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
-#define RUN_STATUS_LED DK_LED1
+#define RUN_STATUS_LED DK_LED3
 #define CON_STATUS_LED DK_LED2
 #define RUN_LED_BLINK_INTERVAL 1000
 
-#define USER_LED DK_LED3
+#define USER_LED DK_LED1
 
 #define USER_BUTTON DK_BTN1_MSK
 
@@ -181,6 +182,13 @@ int main(void)
 {
 	int blink_status = 0;
 	int err;
+
+	if (IS_ENABLED(CONFIG_USB_DEVICE_STACK)) {
+		int ret = usb_enable(NULL);
+		if (ret) {
+			return -1;
+		}
+	}
 
 	printk("Starting Bluetooth Peripheral LBS example\n");
 
