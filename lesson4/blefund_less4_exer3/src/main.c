@@ -238,18 +238,19 @@ static int uart_init(void)
 		return -ENODEV;
 	}
 
-	if (IS_ENABLED(CONFIG_USB_DEVICE_STACK)) {
-		err = usb_enable(NULL);
-		if (err && (err != -EALREADY)) {
-			LOG_ERR("Failed to enable USB");
-			return err;
-		}
-	}
+	// if (IS_ENABLED(CONFIG_USB_DEVICE_STACK)) {
+	// 	err = usb_enable(NULL);
+	// 	if (err && (err != -EALREADY)) {
+	// 		LOG_ERR("Failed to enable USB");
+	// 		return err;
+	// 	}
+	// }
 
 	rx = k_malloc(sizeof(*rx));
 	if (rx) {
 		rx->len = 0;
 	} else {
+		LOG_ERR("Failed to allocate memory for receive");
 		return -ENOMEM;
 	}
 
@@ -257,13 +258,16 @@ static int uart_init(void)
 
 	if (IS_ENABLED(CONFIG_BT_NUS_UART_ASYNC_ADAPTER) && !uart_test_async_api(uart)) {
 		/* Implement API adapter */
+		LOG_INF("Implement API adapter");
 		uart_async_adapter_init(async_adapter, uart);
 		uart = async_adapter;
+	} else {
+		LOG_INF("Not implement API adapter");
 	}
 
 	err = uart_callback_set(uart, uart_cb, NULL);
 	if (err) {
-		LOG_ERR("Cannot initialize UART callback");
+		LOG_ERR("Cannot initialize UART callback(err=%d)", err);
 		return err;
 	}
 
@@ -304,6 +308,7 @@ static int uart_init(void)
 
 		tx->len = pos;
 	} else {
+		LOG_ERR("Failed to allocate memory for transmit");
 		return -ENOMEM;
 	}
 	// Send a welcome message over UART
@@ -313,7 +318,13 @@ static int uart_init(void)
 		return err;
 	}
 	// Enable start receiving data over UART
-	return uart_rx_enable(uart, rx->data, sizeof(rx->data), 50);
+	err = uart_rx_enable(uart, rx->data, sizeof(rx->data), 50);
+	if (err) {
+		LOG_ERR("Failed to start UART receiving (err: %d)", err);
+		return err;
+	}
+
+	return 0;
 }
 
 static void connected(struct bt_conn *conn, uint8_t err)
@@ -488,7 +499,7 @@ static struct bt_nus_cb nus_cb = {
 	.received = bt_receive_cb,
 };
 
-void error(void)
+static void error(void)
 {
 	dk_set_leds_state(DK_ALL_LEDS_MSK, DK_NO_LEDS_MSK);
 
@@ -513,7 +524,7 @@ static void num_comp_reply(bool accept)
 	auth_conn = NULL;
 }
 
-void button_changed(uint32_t button_state, uint32_t has_changed)
+static void button_changed(uint32_t button_state, uint32_t has_changed)
 {
 	uint32_t buttons = button_state & has_changed;
 
@@ -551,6 +562,14 @@ int main(void)
 	int blink_status = 0;
 	int err = 0;
 
+	if (IS_ENABLED(CONFIG_USB_DEVICE_STACK)) {
+		err = usb_enable(NULL);
+		if (err) {
+			LOG_ERR("Failed to enable USB");
+			return err;
+		}
+	}
+
     LOG_INF("nRF Connect SDK BLE Fundamentals");
 
 	configure_gpio();
@@ -577,7 +596,7 @@ int main(void)
 
 	err = bt_enable(NULL);
 	if (err) {
-		LOG_ERR("bt_enable failed: %d", err);
+		LOG_ERR("Return error by bt_enable(): %d", err);
 		error();
 	}
 
@@ -607,7 +626,7 @@ int main(void)
 	}
 }
 /* STEP 9.3 - Define the thread function  */
-void ble_write_thread(void)
+static void ble_write_thread(void)
 {
 	/* Don't go any further until BLE is initialized */
 	k_sem_take(&ble_init_ok, K_FOREVER);
@@ -626,5 +645,5 @@ void ble_write_thread(void)
 }
 
 /* STEP 9.2 - Create a dedicated thread for sending the data over Bluetooth LE. */
-K_THREAD_DEFINE(ble_write_thread_id, STACKSIZE, ble_write_thread, NULL, NULL,
+static K_THREAD_DEFINE(ble_write_thread_id, STACKSIZE, ble_write_thread, NULL, NULL,
 		NULL, PRIORITY, 0, 0);
