@@ -90,6 +90,7 @@ static ssize_t read_button(struct bt_conn *conn, const struct bt_gatt_attr *attr
 {
 	// get a pointer to button_state which is passed in the BT_GATT_CHARACTERISTIC() and stored in attr->user_data
 	const char *value = attr->user_data;
+	LOG_INF("buf=0x%p, attr->user_data=0x%p, &button_state=0x%p", buf, attr->user_data, (void *)&button_state);
 
 	LOG_DBG("Attribute read, handle: %u, conn: %p", attr->handle, (void *)conn);
 
@@ -161,7 +162,7 @@ int my_lbs_send_sensor_notify(uint32_t sensor_value)
 		return -EACCES;
 	}
 
-	return bt_gatt_notify(NULL, &my_lbs_svc.attrs[7], 
+	return bt_gatt_notify(NULL, &my_lbs_svc.attrs[7],
 			      &sensor_value,
 			      sizeof(sensor_value));
 }
